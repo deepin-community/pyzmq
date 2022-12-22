@@ -1,0 +1,55 @@
+From: SVN-Git Migration <python-modules-team@lists.alioth.debian.org>
+Date: Thu, 8 Oct 2015 13:36:52 -0700
+Subject: check package root for cffi binaries
+
+cffi checks __pycache__ for binaries which is cleaned by pypy
+installation so packages can't ship in there.
+
+Instead ship in package root and patch module finding to look in there.
+Also use fixed path in a place passed to cffi to get the same checksum
+in build and install. After it is installed no build is needed so it
+doesn't matter if its wrong.
+
+This patch assumes pypy 2.2 api, won't work with 2.1 as so_suffices is
+no list.
+
+Bug: https://bitbucket.org/cffi/cffi/issue/109/enable-sane-packaging-for-cffi
+Patch-Name: cffi-fix.patch
+---
+ zmq/backend/cffi/__init__.py | 23 +++++++++++++++++++++++
+ 1 file changed, 23 insertions(+)
+
+diff --git a/zmq/backend/cffi/__init__.py b/zmq/backend/cffi/__init__.py
+index dfb79b2..2143ae0 100644
+--- a/zmq/backend/cffi/__init__.py
++++ b/zmq/backend/cffi/__init__.py
+@@ -15,6 +15,29 @@ from zmq.backend.cffi import (
+ )
+ from ._cffi import ffi, lib as C
+ 
++import imp
++import os.path
++import sys
++
++import cffi.vengine_cpy
++import cffi.vengine_gen
++_ma_triplet = getattr(getattr(sys, 'implementation', sys), '_multiarch', None)
++
++def vengine_gen_find_module(self, module_name, path, so_suffixes):
++    for so_suffix in so_suffixes + ['.%s-%s.so' % (imp.get_tag(), _ma_triplet)]:
++        basename = module_name + so_suffix
++        if path is None:
++            path = sys.path
++            # import from non root package would try __pycache__ which is
++            # cleaned by pypy installation
++            path.append("/usr/lib/pypy/dist-packages/zmq/backend/cffi")
++        for dirname in path:
++            filename = os.path.join(dirname, basename)
++            if os.path.isfile(filename):
++                return filename
++
++
++cffi.vengine_gen.VGenericEngine.find_module = vengine_gen_find_module
+ 
+ def zmq_version_info():
+     """Get libzmq version as tuple of ints"""

@@ -1,0 +1,26 @@
+From: Julian Taylor <jtaylor.debian@googlemail.com>
+Date: Thu, 8 Oct 2015 13:36:51 -0700
+Subject: don't use uninitialized memory for test
+
+ the memory could contain signalling NaN which crashes sparc python
+Forwarded: not-needed
+
+Patch-Name: noncopysend-test.patch
+---
+ zmq/tests/test_message.py | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/zmq/tests/test_message.py b/zmq/tests/test_message.py
+index 50402bf..2807f52 100644
+--- a/zmq/tests/test_message.py
++++ b/zmq/tests/test_message.py
+@@ -338,7 +338,8 @@ class TestFrame(BaseZMQTestCase):
+         for i in range(1, len(shapes) + 1):
+             shape = shapes[:i]
+             for dt in dtypes:
+-                A = numpy.empty(shape, dtype=dt)
++                A = numpy.random.uniform(-1000000,
++                                         1000000, size=shape).astype(dt)
+                 a.send(A, copy=False)
+                 msg = b.recv(copy=False)
+ 

@@ -1,0 +1,36 @@
+From: Andreas Hasenack <andreas@canonical.com>
+Date: Mon, 1 Jun 2020 18:49:21 +0000
+Subject: Bump poll timeout to avoid test error on slower machines
+
+Forwarded: no
+Last-Update: 2019-07-18
+
+Not forwarded yet because this is hard to reproduce outside of the Ubuntu
+autopkgtest infrastructure and we first want to see if it helps our case.
+Last-Update: 2019-07-18
+---
+ zmq/tests/test_auth.py | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/zmq/tests/test_auth.py b/zmq/tests/test_auth.py
+index 2930eeb..5f55f41 100644
+--- a/zmq/tests/test_auth.py
++++ b/zmq/tests/test_auth.py
+@@ -112,7 +112,7 @@ class TestThreadAuthentication(BaseAuthTestCase):
+         # to flush spurious events
+         server.poll(100, zmq.POLLOUT)
+ 
+-        if server.poll(1000, zmq.POLLOUT):
++        if server.poll(2000, zmq.POLLOUT):
+             try:
+                 server.send_multipart(msg, zmq.NOBLOCK)
+             except zmq.Again:
+@@ -121,7 +121,7 @@ class TestThreadAuthentication(BaseAuthTestCase):
+         else:
+             return False
+ 
+-        if client.poll(1000):
++        if client.poll(2000):
+             try:
+                 rcvd_msg = client.recv_multipart(zmq.NOBLOCK)
+             except zmq.Again:

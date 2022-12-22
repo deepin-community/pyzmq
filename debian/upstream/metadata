@@ -1,0 +1,6 @@
+---
+Bug-Database: https://github.com/zeromq/pyzmq/issues
+Bug-Submit: https://github.com/zeromq/pyzmq/issues/new
+Repository: https://github.com/zeromq/pyzmq.git
+Repository-Browse: https://github.com/zeromq/pyzmq
+Security-Contact: https://github.com/zeromq/pyzmq/tree/HEAD/SECURITY.md

@@ -1,0 +1,12 @@
+#!/bin/sh
+set -efux
+
+pys="$(py3versions -r 2>/dev/null)"
+
+cd "$AUTOPKGTEST_TMP"
+
+
+for py in $pys; do
+    echo "=== $py ==="
+    $py -m pytest -v -k 'not (test_auth or test_log or test_cython)' --pyargs zmq 2>&1
+done
