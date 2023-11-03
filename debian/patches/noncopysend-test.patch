@@ -11,10 +11,10 @@ Patch-Name: noncopysend-test.patch
  1 file changed, 2 insertions(+), 1 deletion(-)
 
 diff --git a/zmq/tests/test_message.py b/zmq/tests/test_message.py
-index 50402bf..2807f52 100644
+index ab30cb0..5590dd0 100644
 --- a/zmq/tests/test_message.py
 +++ b/zmq/tests/test_message.py
-@@ -338,7 +338,8 @@ class TestFrame(BaseZMQTestCase):
+@@ -336,7 +336,8 @@ class TestFrame(BaseZMQTestCase):
          for i in range(1, len(shapes) + 1):
              shape = shapes[:i]
              for dt in dtypes:

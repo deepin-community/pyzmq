@@ -2,3 +2,4 @@ noncopysend-test.patch
 cffi-fix.patch
 skip_large_send
 bump-poll-timeout-auth-test.patch
+increase-timeout.patch

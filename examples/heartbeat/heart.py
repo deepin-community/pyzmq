@@ -10,7 +10,9 @@ Authors
 """
 
 import time
+
 import numpy
+
 import zmq
 from zmq import devices
 
@@ -25,7 +27,7 @@ dev.start()
 # wait for connections
 time.sleep(1)
 
-A = numpy.random.random((2 ** 11, 2 ** 11))
+A = numpy.random.random((2**11, 2**11))
 print("starting blocking loop")
 while True:
     tic = time.time()

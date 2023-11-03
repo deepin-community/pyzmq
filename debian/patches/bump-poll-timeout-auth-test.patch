@@ -13,10 +13,10 @@ Last-Update: 2019-07-18
  1 file changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/zmq/tests/test_auth.py b/zmq/tests/test_auth.py
-index 2930eeb..5f55f41 100644
+index 8997e7b..1997f18 100644
 --- a/zmq/tests/test_auth.py
 +++ b/zmq/tests/test_auth.py
-@@ -112,7 +112,7 @@ class TestThreadAuthentication(BaseAuthTestCase):
+@@ -115,7 +115,7 @@ class TestThreadAuthentication(BaseAuthTestCase):
          # to flush spurious events
          server.poll(100, zmq.POLLOUT)
  
@@ -25,7 +25,7 @@ index 2930eeb..5f55f41 100644
              try:
                  server.send_multipart(msg, zmq.NOBLOCK)
              except zmq.Again:
-@@ -121,7 +121,7 @@ class TestThreadAuthentication(BaseAuthTestCase):
+@@ -124,7 +124,7 @@ class TestThreadAuthentication(BaseAuthTestCase):
          else:
              return False
  

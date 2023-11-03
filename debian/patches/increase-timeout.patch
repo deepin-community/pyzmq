@@ -1,0 +1,38 @@
+Description: Increase timeout on test which otherwise causes timeouts sometimes (flaky)
+Author: Nilesh Patra <nilesh@debian.org>
+Bug-Debian: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1027209
+Last-Update: 2023-01-13
+--- a/zmq/tests/test_zmqstream.py
++++ b/zmq/tests/test_zmqstream.py
+@@ -49,7 +49,7 @@
+         self.loop.close(all_fds=True)
+         self.context.term()
+ 
+-    def run_until_timeout(self, timeout=10):
++    def run_until_timeout(self, timeout=50):
+         timed_out = []
+ 
+         async def sleep_timeout():
+@@ -79,17 +79,18 @@
+         self.assertRaises(AssertionError, self.stream.on_send, 1)
+         self.assertRaises(AssertionError, self.stream.on_recv, zmq)
+ 
+-    def test_on_recv_basic(self):
++    async def test_on_recv_basic(self):
+         sent = [b'basic']
++        self.push.send_multipart(sent)
++        f = asyncio.Future()
+ 
+         def callback(msg):
+             assert msg == sent
+             self.loop.stop()
+ 
+-        self.loop.run_sync(partial(self.push.send_multipart, sent))
+-        self.loop.call_later(1, lambda: self.pull.on_recv(callback))
+         self.pull.on_recv(callback)
+-        self.run_until_timeout()
++        recvd = await asyncio.wait_for(f, timeout=20)
++        assert recvd == sent
+ 
+     def test_on_recv_wake(self):
+         sent = [b'wake']

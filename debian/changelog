@@ -1,3 +1,40 @@
+pyzmq (24.0.1-4) unstable; urgency=high
+
+  * Team Upload.
+  * convert test_on_recv_basic to async. Should really
+    build on slower archs now.
+
+ -- Nilesh Patra <nilesh@debian.org>  Fri, 13 Jan 2023 15:30:52 +0530
+
+pyzmq (24.0.1-3) unstable; urgency=medium
+
+  * Team Upload.
+  * Further increase timeout to build on slower archs
+
+ -- Nilesh Patra <nilesh@debian.org>  Fri, 13 Jan 2023 15:17:29 +0530
+
+pyzmq (24.0.1-2) unstable; urgency=medium
+
+  [ Gordon Ball ]
+  * Team Upload.
+  * Drop obsolete dependency on python3-nose (Closes: #1018605)
+
+  [ Nilesh Patra ]
+  * Bump Standards-Version to 4.6.2 (no changes needed)
+  * Add patch to increase test timeout (Closes: #1027209)
+  * Run autopkgtest for supported pyvers instead of requested
+
+ -- Nilesh Patra <nilesh@debian.org>  Fri, 13 Jan 2023 08:41:54 +0530
+
+pyzmq (24.0.1-1) unstable; urgency=medium
+
+  * d/watch: track github tags, not releases
+  * New upstream version 24.0.1
+  * Standards-Version: 4.6.1
+  * Build using pyproject.toml (pybuild-plugin-pyprojwct) instead of setup.py
+
+ -- Gordon Ball <gordon@chronitis.net>  Mon, 03 Oct 2022 19:51:34 +0000
+
 pyzmq (22.3.0-1) unstable; urgency=medium
 
   * New upstream version 22.3.0

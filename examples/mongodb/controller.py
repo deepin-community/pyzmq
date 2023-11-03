@@ -5,22 +5,25 @@
 #  the file COPYING.BSD, distributed as part of this software.
 # -----------------------------------------------------------------------------
 
-from __future__ import print_function
 import json
-import sys
-import zmq
+from typing import Any, Dict, Optional, Union
+
 import pymongo
 import pymongo.json_util
 
+import zmq
 
-class MongoZMQ(object):
+
+class MongoZMQ:
     """
     ZMQ server that adds/fetches documents (ie dictionaries) to a MongoDB.
 
     NOTE: mongod must be started before using this class
     """
 
-    def __init__(self, db_name, table_name, bind_addr="tcp://127.0.0.1:5000"):
+    def __init__(
+        self, db_name: str, table_name: str, bind_addr: str = "tcp://127.0.0.1:5000"
+    ):
         """
         bind_addr: address to bind zmq socket on
         db_name: name of database to write to (created if doesn't exist)
@@ -33,20 +36,21 @@ class MongoZMQ(object):
         self._db = self._conn[self._db_name]
         self._table = self._db[self._table_name]
 
-    def _doc_to_json(self, doc):
+    def _doc_to_json(self, doc: Any) -> str:
         return json.dumps(doc, default=pymongo.json_util.default)
 
-    def add_document(self, doc):
+    def add_document(self, doc: Dict) -> Optional[str]:
         """
         Inserts a document (dictionary) into mongo database table
         """
-        print('adding docment %s' % (doc))
+        print(f'adding document {doc}')
         try:
             self._table.insert(doc)
         except Exception as e:
             return 'Error: %s' % e
+        return None
 
-    def get_document_by_keys(self, keys):
+    def get_document_by_keys(self, keys: Dict[str, Any]) -> Union[Dict, str]:
         """
         Attempts to return a single document from database table that matches
         each key/value in keys dictionary.
@@ -57,7 +61,7 @@ class MongoZMQ(object):
         except Exception as e:
             return 'Error: %s' % e
 
-    def start(self):
+    def start(self) -> None:
         context = zmq.Context()
         socket = context.socket(zmq.ROUTER)
         socket.bind(self._bind_addr)
@@ -87,7 +91,7 @@ class MongoZMQ(object):
             socket.send_multipart(reply)
 
 
-def main():
+def main() -> None:
     MongoZMQ('ipcontroller', 'jobs').start()
 
 

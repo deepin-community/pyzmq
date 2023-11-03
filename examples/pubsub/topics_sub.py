@@ -18,13 +18,11 @@ catch 'weather'.
 # -----------------------------------------------------------------------------
 
 import sys
-import time
 
 import zmq
-import numpy
 
 
-def main():
+def main() -> None:
     if len(sys.argv) < 2:
         print('usage: subscriber <connect_to> [topic topic ...]')
         sys.exit(1)
@@ -47,7 +45,11 @@ def main():
     try:
         while True:
             topic, msg = s.recv_multipart()
-            print('   Topic: %s, msg:%s' % (topic.decode('utf-8'), msg.decode('utf-8')))
+            print(
+                '   Topic: {}, msg:{}'.format(
+                    topic.decode('utf-8'), msg.decode('utf-8')
+                )
+            )
     except KeyboardInterrupt:
         pass
     print("Done.")

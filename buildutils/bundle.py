@@ -9,13 +9,13 @@
 # -----------------------------------------------------------------------------
 
 
+import hashlib
 import os
+import platform
 import shutil
 import sys
-import hashlib
-import platform
 import zipfile
-from subprocess import Popen, PIPE
+from subprocess import PIPE, Popen
 from tempfile import TemporaryDirectory
 from unittest import mock
 from urllib.request import urlopen
@@ -44,12 +44,19 @@ HERE = os.path.dirname(__file__)
 ROOT = os.path.dirname(HERE)
 
 
+# msvc 142 builds have a problem:
+# on _some_ (unclear which!) systems due to the implementation of runtime detection of AF_UNIX
+# in 4.3.4
+vcversion = 141
+# until that's fixed, we shouldn't ship 142 builds,
+# which in turn means we can't support IPC in wheels
+
 if platform.architecture()[0] == '64bit':
     msarch = '-x64'
-    vcversion = 142
+    # vcversion = 142
 else:
     msarch = ''
-    vcversion = 141
+    # vcversion = 141
 
 libzmq_dll = f"libzmq-v{vcversion}{msarch}-{x}_{y}_{z}.zip"
 libzmq_dll_url = f"{download_url}/{libzmq_dll}"
@@ -106,10 +113,10 @@ def fetch_archive(savedir, url, fname, checksum, force=False):
         if digest == digest_ref or not digest_ref:
             return dest
         else:
-            warn("but checksum %s != %s, redownloading." % (digest, digest_ref))
+            warn(f"but checksum {digest} != {digest_ref}, redownloading.")
             os.remove(fname)
 
-    info("fetching %s into %s" % (url, savedir))
+    info(f"fetching {url} into {savedir}")
     if not os.path.exists(savedir):
         os.makedirs(savedir)
     req = urlopen(url)

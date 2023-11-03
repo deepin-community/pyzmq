@@ -1,5 +1,3 @@
-# -*- coding: utf8 -*-
-
 # Copyright (C) PyZMQ Developers
 # Distributed under the terms of the Modified BSD License.
 
@@ -13,8 +11,6 @@ import pytest
 
 import zmq.auth
 from zmq.auth.thread import ThreadAuthenticator
-
-from zmq.utils.strtypes import u
 from zmq.tests import BaseZMQTestCase, SkipTest, skip_pypy
 
 
@@ -26,27 +22,34 @@ class BaseAuthTestCase(BaseZMQTestCase):
             zmq.curve_keypair()
         except zmq.ZMQError:
             raise SkipTest("security requires libzmq to have curve support")
-        super(BaseAuthTestCase, self).setUp()
+        super().setUp()
         # enable debug logging while we run tests
         logging.getLogger('zmq.auth').setLevel(logging.DEBUG)
         self.auth = self.make_auth()
-        self.auth.start()
         self.base_dir, self.public_keys_dir, self.secret_keys_dir = self.create_certs()
+        self.start_auth()
 
     def make_auth(self):
         raise NotImplementedError()
+
+    def send(self, socket, *args, **kwargs):
+        # allow override in async classes
+        return socket.send(*args, **kwargs)
+
+    def start_auth(self):
+        self.auth.start()
 
     def tearDown(self):
         if self.auth:
             self.auth.stop()
             self.auth = None
         self.remove_certs(self.base_dir)
-        super(BaseAuthTestCase, self).tearDown()
+        super().tearDown()
 
     def create_certs(self):
         """Create CURVE certificates for a test"""
 
-        # Create temporary CURVE keypairs for this test run. We create all keys in a
+        # Create temporary CURVE key pairs for this test run. We create all keys in a
         # temp directory and then move them into the appropriate private or public
         # directory.
 
@@ -127,7 +130,7 @@ class TestThreadAuthentication(BaseAuthTestCase):
             except zmq.Again:
                 warnings.warn("client set POLLIN, but cannot recv", RuntimeWarning)
             else:
-                self.assertEqual(rcvd_msg, msg)
+                assert rcvd_msg == msg
                 result = True
         return result
 
@@ -142,7 +145,7 @@ class TestThreadAuthentication(BaseAuthTestCase):
 
         server = self.socket(zmq.PUSH)
         client = self.socket(zmq.PULL)
-        self.assertTrue(self.can_connect(server, client))
+        assert self.can_connect(server, client)
 
         # By setting a domain we switch on authentication for NULL sockets,
         # though no policies are configured yet. The client connection
@@ -150,7 +153,7 @@ class TestThreadAuthentication(BaseAuthTestCase):
         server = self.socket(zmq.PUSH)
         server.zap_domain = b'global'
         client = self.socket(zmq.PULL)
-        self.assertTrue(self.can_connect(server, client))
+        assert self.can_connect(server, client)
 
     def test_blacklist(self):
         """threaded auth - Blacklist"""
@@ -161,7 +164,7 @@ class TestThreadAuthentication(BaseAuthTestCase):
         # though no policies are configured yet.
         server.zap_domain = b'global'
         client = self.socket(zmq.PULL)
-        self.assertFalse(self.can_connect(server, client))
+        assert not self.can_connect(server, client)
 
     def test_whitelist(self):
         """threaded auth - Whitelist"""
@@ -172,7 +175,7 @@ class TestThreadAuthentication(BaseAuthTestCase):
         # though no policies are configured yet.
         server.zap_domain = b'global'
         client = self.socket(zmq.PULL)
-        self.assertTrue(self.can_connect(server, client))
+        assert self.can_connect(server, client)
 
     def test_plain(self):
         """threaded auth - PLAIN"""
@@ -183,7 +186,7 @@ class TestThreadAuthentication(BaseAuthTestCase):
         client = self.socket(zmq.PULL)
         client.plain_username = b'admin'
         client.plain_password = b'Password'
-        self.assertFalse(self.can_connect(server, client))
+        assert not self.can_connect(server, client)
 
         # Try PLAIN authentication - with server configured, connection should pass
         server = self.socket(zmq.PUSH)
@@ -192,7 +195,7 @@ class TestThreadAuthentication(BaseAuthTestCase):
         client.plain_username = b'admin'
         client.plain_password = b'Password'
         self.auth.configure_plain(domain='*', passwords={'admin': 'Password'})
-        self.assertTrue(self.can_connect(server, client))
+        assert self.can_connect(server, client)
 
         # Try PLAIN authentication - with bogus credentials, connection should fail
         server = self.socket(zmq.PUSH)
@@ -200,7 +203,7 @@ class TestThreadAuthentication(BaseAuthTestCase):
         client = self.socket(zmq.PULL)
         client.plain_username = b'admin'
         client.plain_password = b'Bogus'
-        self.assertFalse(self.can_connect(server, client))
+        assert not self.can_connect(server, client)
 
         # Remove authenticator and check that a normal connection works
         self.auth.stop()
@@ -208,7 +211,7 @@ class TestThreadAuthentication(BaseAuthTestCase):
 
         server = self.socket(zmq.PUSH)
         client = self.socket(zmq.PULL)
-        self.assertTrue(self.can_connect(server, client))
+        assert self.can_connect(server, client)
         client.close()
         server.close()
 
@@ -227,7 +230,7 @@ class TestThreadAuthentication(BaseAuthTestCase):
         client.curve_publickey = client_public
         client.curve_secretkey = client_secret
         client.curve_serverkey = server_public
-        self.assertFalse(self.can_connect(server, client))
+        assert not self.can_connect(server, client)
 
         # Try CURVE authentication - with server configured to CURVE_ALLOW_ANY, connection should pass
         self.auth.configure_curve(domain='*', location=zmq.auth.CURVE_ALLOW_ANY)
@@ -239,7 +242,7 @@ class TestThreadAuthentication(BaseAuthTestCase):
         client.curve_publickey = client_public
         client.curve_secretkey = client_secret
         client.curve_serverkey = server_public
-        self.assertTrue(self.can_connect(server, client))
+        assert self.can_connect(server, client)
 
         # Try CURVE authentication - with server configured, connection should pass
         self.auth.configure_curve(domain='*', location=self.public_keys_dir)
@@ -260,7 +263,7 @@ class TestThreadAuthentication(BaseAuthTestCase):
         # Try connecting using NULL and no authentication enabled, connection should pass
         server = self.socket(zmq.PUSH)
         client = self.socket(zmq.PULL)
-        self.assertTrue(self.can_connect(server, client))
+        assert self.can_connect(server, client)
 
     def test_curve_callback(self):
         """threaded auth - CURVE with callback authentication"""
@@ -277,11 +280,11 @@ class TestThreadAuthentication(BaseAuthTestCase):
         client.curve_publickey = client_public
         client.curve_secretkey = client_secret
         client.curve_serverkey = server_public
-        self.assertFalse(self.can_connect(server, client))
+        assert not self.can_connect(server, client)
 
         # Try CURVE authentication - with callback authentication configured, connection should pass
 
-        class CredentialsProvider(object):
+        class CredentialsProvider:
             def __init__(self):
                 self.client = client_public
 
@@ -301,11 +304,11 @@ class TestThreadAuthentication(BaseAuthTestCase):
         client.curve_publickey = client_public
         client.curve_secretkey = client_secret
         client.curve_serverkey = server_public
-        self.assertTrue(self.can_connect(server, client))
+        assert self.can_connect(server, client)
 
         # Try CURVE authentication - with callback authentication configured with wrong key, connection should not pass
 
-        class WrongCredentialsProvider(object):
+        class WrongCredentialsProvider:
             def __init__(self):
                 self.client = "WrongCredentials"
 
@@ -325,7 +328,7 @@ class TestThreadAuthentication(BaseAuthTestCase):
         client.curve_publickey = client_public
         client.curve_secretkey = client_secret
         client.curve_serverkey = server_public
-        self.assertFalse(self.can_connect(server, client))
+        assert not self.can_connect(server, client)
 
     @skip_pypy
     def test_curve_user_id(self):
@@ -346,7 +349,7 @@ class TestThreadAuthentication(BaseAuthTestCase):
         assert self.can_connect(client, server)
 
         # test default user-id map
-        client.send(b'test')
+        self.send(client, b'test')
         msg = self.recv(server, copy=False)
         assert msg.bytes == b'test'
         try:
@@ -354,10 +357,10 @@ class TestThreadAuthentication(BaseAuthTestCase):
         except zmq.ZMQVersionError:
             pass
         else:
-            assert user_id == u(client_public)
+            assert user_id == client_public.decode("utf8")
 
         # test custom user-id map
-        self.auth.curve_user_id = lambda client_key: u'custom'
+        self.auth.curve_user_id = lambda client_key: 'custom'
 
         client2 = self.socket(zmq.PUSH)
         client2.curve_publickey = client_public
@@ -365,7 +368,7 @@ class TestThreadAuthentication(BaseAuthTestCase):
         client2.curve_serverkey = server_public
         assert self.can_connect(client2, server)
 
-        client2.send(b'test2')
+        self.send(client2, b'test2')
         msg = self.recv(server, copy=False)
         assert msg.bytes == b'test2'
         try:
@@ -373,7 +376,7 @@ class TestThreadAuthentication(BaseAuthTestCase):
         except zmq.ZMQVersionError:
             pass
         else:
-            assert user_id == u'custom'
+            assert user_id == 'custom'
 
 
 def with_ioloop(method, expect_success=True):
@@ -424,24 +427,31 @@ class TestIOLoopAuthentication(BaseAuthTestCase):
         from zmq.eventloop import zmqstream
 
         self.fail_msg = None
-        self.io_loop = ioloop.IOLoop()
-        super(TestIOLoopAuthentication, self).setUp()
+        self.io_loop = ioloop.IOLoop(make_current=False)
+        super().setUp()
         self.server = self.socket(zmq.PUSH)
         self.client = self.socket(zmq.PULL)
-        self.pushstream = zmqstream.ZMQStream(self.server, self.io_loop)
-        self.pullstream = zmqstream.ZMQStream(self.client, self.io_loop)
+
+        async def make_streams():
+            self.pushstream = zmqstream.ZMQStream(self.server)
+            self.pullstream = zmqstream.ZMQStream(self.client)
+
+        self.io_loop.run_sync(make_streams)
 
     def make_auth(self):
         from zmq.auth.ioloop import IOLoopAuthenticator
 
-        return IOLoopAuthenticator(self.context, io_loop=self.io_loop)
+        async def make_auth():
+            return IOLoopAuthenticator(self.context)
+
+        return self.io_loop.run_sync(make_auth)
 
     def tearDown(self):
         if self.auth:
             self.auth.stop()
             self.auth = None
         self.io_loop.close(all_fds=True)
-        super(TestIOLoopAuthentication, self).tearDown()
+        super().tearDown()
 
     def attempt_connection(self):
         """Check if client can connect to server using tcp transport"""

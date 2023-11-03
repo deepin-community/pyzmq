@@ -12,10 +12,12 @@ Author: Chris Laws
 
 import os
 import shutil
+from typing import Union
+
 import zmq.auth
 
 
-def generate_certificates(base_dir):
+def generate_certificates(base_dir: Union[str, os.PathLike]) -> None:
     '''Generate client and server CURVE certificate files'''
     keys_dir = os.path.join(base_dir, 'certificates')
     public_keys_dir = os.path.join(base_dir, 'public_keys')
@@ -53,7 +55,7 @@ def generate_certificates(base_dir):
 if __name__ == '__main__':
     if zmq.zmq_version_info() < (4, 0):
         raise RuntimeError(
-            "Security is not supported in libzmq version < 4.0. libzmq version {0}".format(
+            "Security is not supported in libzmq version < 4.0. libzmq version {}".format(
                 zmq.zmq_version()
             )
         )

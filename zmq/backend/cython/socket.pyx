@@ -27,50 +27,51 @@
 cdef extern from "pyversion_compat.h":
     pass
 
+from cpython cimport (
+    PY_VERSION_HEX,
+    Py_DECREF,
+    Py_INCREF,
+    PyBytes_AsString,
+    PyBytes_FromStringAndSize,
+    PyBytes_Size,
+)
 from libc.errno cimport ENAMETOOLONG, ENOENT, ENOTSOCK
 from libc.string cimport memcpy
 
-from cpython cimport PyBytes_FromStringAndSize
-from cpython cimport PyBytes_AsString, PyBytes_Size
-from cpython cimport Py_DECREF, Py_INCREF, PY_VERSION_HEX
-
 from zmq.utils.buffers cimport asbuffer_r
 
+from .context cimport Context
 from .libzmq cimport (
-    fd_t,
-    int64_t,
-
-    zmq_errno,
-
-    zmq_msg_t,
-    zmq_msg_init,
-    zmq_msg_init_size,
-    zmq_msg_close,
-    zmq_msg_data,
-    zmq_msg_size,
-    zmq_msg_send,
-    zmq_msg_recv,
-
-    zmq_socket,
-    zmq_socket_monitor,
-    zmq_connect,
-    zmq_disconnect,
-    zmq_bind,
-    zmq_unbind,
-    zmq_setsockopt,
-    zmq_getsockopt,
-    zmq_close,
-    zmq_join,
-    zmq_leave,
-
+    ZMQ_ETERM,
     ZMQ_EVENT_ALL,
     ZMQ_IDENTITY,
     ZMQ_LINGER,
     ZMQ_TYPE,
+    fd_t,
+    int64_t,
+    zmq_bind,
+    zmq_close,
+    zmq_connect,
+    zmq_disconnect,
+    zmq_errno,
+    zmq_getsockopt,
+    zmq_join,
+    zmq_leave,
+    zmq_msg_close,
+    zmq_msg_data,
+    zmq_msg_init,
+    zmq_msg_init_size,
+    zmq_msg_recv,
+    zmq_msg_send,
+    zmq_msg_size,
+    zmq_msg_t,
+    zmq_setsockopt,
+    zmq_socket,
+    zmq_socket_monitor,
+    zmq_unbind,
 )
 from .message cimport Frame, copy_zmq_msg_bytes
 
-from .context cimport Context
 
 cdef extern from "Python.h":
     ctypedef int Py_ssize_t
@@ -86,12 +87,12 @@ cdef extern from "getpid_compat.h":
 # Python Imports
 #-----------------------------------------------------------------------------
 
+import codecs
 import copy as copy_mod
-import time
-import sys
 import random
 import struct
-import codecs
+import sys
+import time
 
 try:
     import cPickle
@@ -101,9 +102,11 @@ except:
     import pickle
 
 import zmq
-from zmq.backend.cython import constants
+from zmq.constants import SocketOption, _OptType
+
 from .checkrc cimport _check_rc
-from zmq.error import ZMQError, ZMQBindError, InterruptedSystemCall, _check_version
+
+from zmq.error import InterruptedSystemCall, ZMQBindError, ZMQError, _check_version
 
 #-----------------------------------------------------------------------------
 # Code
@@ -150,9 +153,14 @@ cdef inline _check_closed_deep(Socket s):
         return True
     else:
         rc = zmq_getsockopt(s.handle, ZMQ_TYPE, <void *>&stype, &sz)
-        if rc < 0 and zmq_errno() == ENOTSOCK:
-            s._closed = True
-            return True
+        if rc < 0:
+            errno = zmq_errno()
+            if errno == ENOTSOCK:
+                s._closed = True
+                return True
+            elif errno == ZMQ_ETERM:
+                # don't raise ETERM when checking if we're closed
+                return False
         else:
             _check_rc(rc)
     return False
@@ -409,16 +417,26 @@ cdef class Socket:
         cdef Py_ssize_t sz
 
         _check_closed(self)
-        if isinstance(optval, unicode):
+        if isinstance(optval, str):
             raise TypeError("unicode not allowed, use setsockopt_string")
 
-        if option in zmq.constants.bytes_sockopts:
+        try:
+            sopt = SocketOption(option)
+        except ValueError:
+            # unrecognized option,
+            # assume from the future,
+            # let EINVAL raise
+            opt_type = _OptType.int
+        else:
+            opt_type = sopt._opt_type
+
+        if opt_type == _OptType.bytes:
             if not isinstance(optval, bytes):
                 raise TypeError('expected bytes, got: %r' % optval)
             optval_c = PyBytes_AsString(optval)
             sz = PyBytes_Size(optval)
             _setsockopt(self.handle, option, optval_c, sz)
-        elif option in zmq.constants.int64_sockopts:
+        elif opt_type == _OptType.int64:
             if not isinstance(optval, int):
                 raise TypeError('expected int, got: %r' % optval)
             optval_int64_c = optval
@@ -463,18 +481,28 @@ cdef class Socket:
 
         _check_closed(self)
 
-        if option in zmq.constants.bytes_sockopts:
+        try:
+            sopt = SocketOption(option)
+        except ValueError:
+            # unrecognized option,
+            # assume from the future,
+            # let EINVAL raise
+            opt_type = _OptType.int
+        else:
+            opt_type = sopt._opt_type
+
+        if opt_type == _OptType.bytes:
             sz = 255
             _getsockopt(self.handle, option, <void *>identity_str_c, &sz)
             # strip null-terminated strings *except* identity
             if option != ZMQ_IDENTITY and sz > 0 and (<char *>identity_str_c)[sz-1] == b'\0':
                 sz -= 1
             result = PyBytes_FromStringAndSize(<char *>identity_str_c, sz)
-        elif option in zmq.constants.int64_sockopts:
+        elif opt_type == _OptType.int64:
             sz = sizeof(int64_t)
             _getsockopt(self.handle, option, <void *>&optval_int64_c, &sz)
             result = optval_int64_c
-        elif option in zmq.constants.fd_sockopts:
+        elif opt_type == _OptType.fd:
             sz = sizeof(fd_t)
             _getsockopt(self.handle, option, <void *>&optval_fd_c, &sz)
             result = optval_fd_c
@@ -512,7 +540,7 @@ cdef class Socket:
 
         _check_closed(self)
         addr_b = addr
-        if isinstance(addr, unicode):
+        if isinstance(addr, str):
             addr_b = addr.encode('utf-8')
         elif isinstance(addr_b, bytes):
             addr = addr_b.decode('utf-8')
@@ -554,14 +582,14 @@ cdef class Socket:
         addr : str
             The address string. This has the form 'protocol://interface:port',
             for example 'tcp://127.0.0.1:5555'. Protocols supported are
-            tcp, upd, pgm, inproc and ipc. If the address is unicode, it is
+            tcp, udp, pgm, inproc and ipc. If the address is unicode, it is
             encoded to utf-8 first.
         """
         cdef int rc
         cdef char* c_addr
 
         _check_closed(self)
-        if isinstance(addr, unicode):
+        if isinstance(addr, str):
             addr = addr.encode('utf-8')
         if not isinstance(addr, bytes):
             raise TypeError('expected str, got: %r' % addr)
@@ -590,7 +618,7 @@ cdef class Socket:
         addr : str
             The address string. This has the form 'protocol://interface:port',
             for example 'tcp://127.0.0.1:5555'. Protocols supported are
-            tcp, upd, pgm, inproc and ipc. If the address is unicode, it is
+            tcp, udp, pgm, inproc and ipc. If the address is unicode, it is
             encoded to utf-8 first.
         """
         cdef int rc
@@ -598,7 +626,7 @@ cdef class Socket:
 
         _check_version((3,2), "unbind")
         _check_closed(self)
-        if isinstance(addr, unicode):
+        if isinstance(addr, str):
             addr = addr.encode('utf-8')
         if not isinstance(addr, bytes):
             raise TypeError('expected str, got: %r' % addr)
@@ -621,7 +649,7 @@ cdef class Socket:
         addr : str
             The address string. This has the form 'protocol://interface:port',
             for example 'tcp://127.0.0.1:5555'. Protocols supported are
-            tcp, upd, pgm, inproc and ipc. If the address is unicode, it is
+            tcp, udp, pgm, inproc and ipc. If the address is unicode, it is
             encoded to utf-8 first.
         """
         cdef int rc
@@ -629,7 +657,7 @@ cdef class Socket:
 
         _check_version((3,2), "disconnect")
         _check_closed(self)
-        if isinstance(addr, unicode):
+        if isinstance(addr, str):
             addr = addr.encode('utf-8')
         if not isinstance(addr, bytes):
             raise TypeError('expected str, got: %r' % addr)
@@ -665,7 +693,7 @@ cdef class Socket:
 
         _check_version((3,2), "monitor")
         if addr is not None:
-            if isinstance(addr, unicode):
+            if isinstance(addr, str):
                 addr = addr.encode('utf-8')
             if not isinstance(addr, bytes):
                 raise TypeError('expected str, got: %r' % addr)
@@ -688,7 +716,7 @@ cdef class Socket:
         _check_version((4,2), "RADIO-DISH")
         if not zmq.has('draft'):
             raise RuntimeError("libzmq must be built with draft support")
-        if isinstance(group, unicode):
+        if isinstance(group, str):
             group = group.encode('utf8')
         cdef int rc = zmq_join(self.handle, group)
         _check_rc(rc)
@@ -758,7 +786,7 @@ cdef class Socket:
         """
         _check_closed(self)
 
-        if isinstance(data, unicode):
+        if isinstance(data, str):
             raise TypeError("unicode not allowed, use send_string")
 
         if copy and not isinstance(data, Frame):
