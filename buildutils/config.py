@@ -11,14 +11,13 @@
 #  the file COPYING.BSD, distributed as part of this software.
 # -----------------------------------------------------------------------------
 
-import sys
-import os
 import json
-
+import os
+import sys
 from configparser import ConfigParser
 
 pjoin = os.path.join
-from .msg import debug, fatal, warn
+from .msg import debug, warn
 
 # -----------------------------------------------------------------------------
 # Utility functions (adapted from h5py: https://www.h5py.org/)
@@ -34,7 +33,7 @@ def load_config(name, base='conf'):
         with open(fname) as f:
             cfg = json.load(f)
     except Exception as e:
-        warn("Couldn't load %s: %s" % (fname, e))
+        warn(f"Couldn't load {fname}: {e}")
         cfg = {}
     return cfg
 

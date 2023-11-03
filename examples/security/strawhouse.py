@@ -19,7 +19,7 @@ import zmq.auth
 from zmq.auth.thread import ThreadAuthenticator
 
 
-def run():
+def run() -> None:
     '''Run strawhouse client'''
 
     allow_test_pass = False
@@ -83,7 +83,7 @@ def run():
 if __name__ == '__main__':
     if zmq.zmq_version_info() < (4, 0):
         raise RuntimeError(
-            "Security is not supported in libzmq version < 4.0. libzmq version {0}".format(
+            "Security is not supported in libzmq version < 4.0. libzmq version {}".format(
                 zmq.zmq_version()
             )
         )

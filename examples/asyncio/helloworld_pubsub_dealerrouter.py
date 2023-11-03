@@ -9,19 +9,21 @@ When the Router receives a message from the Dealer, it changes the language sett
 # This example is in the public domain (CC-0)
 
 import asyncio
+import logging
+import traceback
+
+import zmq
 import zmq.asyncio
 from zmq.asyncio import Context
-import traceback
-import logging
 
 
 # set message based on language
 class HelloWorld:
-    def __init__(self):
+    def __init__(self) -> None:
         self.lang = 'eng'
         self.msg = "Hello World"
 
-    def change_language(self):
+    def change_language(self) -> None:
         if self.lang == 'eng':
             self.lang = 'jap'
             self.msg = "Hello Sekai"
@@ -30,7 +32,7 @@ class HelloWorld:
             self.lang = 'eng'
             self.msg = "Hello World"
 
-    def msg_pub(self):
+    def msg_pub(self) -> str:
         return self.msg
 
 
@@ -38,26 +40,28 @@ class HelloWorld:
 # changes "World" to "Sekai" and returns message 'sekai'
 class HelloWorldPrinter:
     # process received message
-    def msg_sub(self, msg):
-        print("message received world: {}".format(msg))
+    def msg_sub(self, msg: str) -> None:
+        print(f"message received world: {msg}")
 
 
 # manages message flow between publishers and subscribers
 class HelloWorldMessage:
-    def __init__(self, url='127.0.0.1', port='5555'):
+    def __init__(self, url: str = '127.0.0.1', port: int = 5555):
         # get ZeroMQ version
         print("Current libzmq version is %s" % zmq.zmq_version())
         print("Current  pyzmq version is %s" % zmq.__version__)
 
-        self.url = "tcp://{}:{}".format(url, port)
+        self.url = f"tcp://{url}:{port}"
         # pub/sub and dealer/router
         self.ctx = Context.instance()
 
         # init hello world publisher obj
         self.hello_world = HelloWorld()
 
+    def main(self) -> None:
+
         # activate publishers / subscribers
-        asyncio.get_event_loop().run_until_complete(
+        asyncio.run(
             asyncio.wait(
                 [
                     self.hello_world_pub(),
@@ -69,7 +73,7 @@ class HelloWorldMessage:
         )
 
     # generates message "Hello World" and publish to topic 'world'
-    async def hello_world_pub(self):
+    async def hello_world_pub(self) -> None:
         pub = self.ctx.socket(zmq.PUB)
         pub.connect(self.url)
 
@@ -85,7 +89,7 @@ class HelloWorldMessage:
             while True:
                 # ask for message
                 msg = self.hello_world.msg_pub()
-                print("world pub: {}".format(msg))
+                print(f"world pub: {msg}")
 
                 # slow down message publication
                 await asyncio.sleep(0.5)
@@ -105,7 +109,7 @@ class HelloWorldMessage:
             pass
 
     # processes message topic 'world'; "Hello World" or "Hello Sekai"
-    async def hello_world_sub(self):
+    async def hello_world_sub(self) -> None:
         print("Setting up world sub")
         obj = HelloWorldPrinter()
         # setup subscriber
@@ -119,7 +123,7 @@ class HelloWorldMessage:
             # keep listening to all published message on topic 'world'
             while True:
                 [topic, msg] = await sub.recv_multipart()
-                print("world sub; topic: {}\tmessage: {}".format(topic, msg))
+                print(f"world sub; topic: {topic.decode()}\tmessage: {msg.decode()}")
                 # process message
                 obj.msg_sub(msg.decode('utf-8'))
 
@@ -140,11 +144,11 @@ class HelloWorldMessage:
             pass
 
     # Deal a message to topic 'lang' that language should be changed
-    async def lang_changer_dealer(self):
+    async def lang_changer_dealer(self) -> None:
         # setup dealer
         deal = self.ctx.socket(zmq.DEALER)
         deal.setsockopt(zmq.IDENTITY, b'lang_dealer')
-        deal.connect(self.url[:-1] + "{}".format(int(self.url[-1]) + 1))
+        deal.connect(self.url[:-1] + f"{int(self.url[-1]) + 1}")
         print("Command dealer initialized")
 
         # give time to router to initialize; wait time >.2 sec
@@ -155,7 +159,7 @@ class HelloWorldMessage:
         try:
             # keep sending messages
             while True:
-                print("Command deal: {}".format(msg))
+                print(f"Command deal: {msg}")
 
                 # slow down message publication
                 await asyncio.sleep(2.0)
@@ -175,10 +179,10 @@ class HelloWorldMessage:
             pass
 
     # changes Hello xxx message when a command is received from topic 'lang'; keeps listening for commands
-    async def lang_changer_router(self):
+    async def lang_changer_router(self) -> None:
         # setup router
         rout = self.ctx.socket(zmq.ROUTER)
-        rout.bind(self.url[:-1] + "{}".format(int(self.url[-1]) + 1))
+        rout.bind(self.url[:-1] + f"{int(self.url[-1]) + 1}")
         # rout.setsockopt(zmq.SUBSCRIBE, b'')
         print("Command router initialized")
 
@@ -188,7 +192,7 @@ class HelloWorldMessage:
             while True:
                 [id_dealer, msg] = await rout.recv_multipart()
                 print(
-                    "Command rout; Sender ID: {};\tmessage: {}".format(id_dealer, msg)
+                    f"Command rout; Sender ID: {id_dealer!r};\tmessage: {msg.decode()}"
                 )
 
                 self.hello_world.change_language()
@@ -209,5 +213,10 @@ class HelloWorldMessage:
             pass
 
 
+def main() -> None:
+    hello_world = HelloWorldMessage()
+    hello_world.main()
+
+
 if __name__ == '__main__':
-    HelloWorldMessage()
+    main()

@@ -10,14 +10,14 @@ Patch-Name: skip_large_send
  1 file changed, 1 insertion(+)
 
 diff --git a/zmq/tests/test_socket.py b/zmq/tests/test_socket.py
-index a3ae3cc..55c59a1 100644
+index bf54cf4..4cd2489 100644
 --- a/zmq/tests/test_socket.py
 +++ b/zmq/tests/test_socket.py
-@@ -571,6 +571,7 @@ class TestSocket(BaseZMQTestCase):
+@@ -579,6 +579,7 @@ class TestSocket(BaseZMQTestCase):
  
      # CI often can't handle how much memory PyPy uses on this test
      @mark.skipif(
 +        True or
-         (pypy and on_ci) or (sys.maxsize < 2 ** 32) or (windows),
+         (pypy and on_ci) or (sys.maxsize < 2**32) or (windows),
          reason="only run on 64b and not on CI.",
      )

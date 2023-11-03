@@ -9,20 +9,18 @@ the event loop.
 """
 
 
-import sys
 import random
+import sys
 import threading
 import time
+
+from tornado import ioloop, web
 
 import zmq
 from zmq.eventloop.future import Context as FutureContext
 
-from tornado import gen
-from tornado import ioloop
-from tornado import web
 
-
-def slow_responder():
+def slow_responder() -> None:
     """thread for slowly responding to replies."""
     ctx = zmq.Context()
     socket = ctx.socket(zmq.ROUTER)
@@ -37,14 +35,14 @@ def slow_responder():
         i += 1
 
 
-def dot():
+def dot() -> None:
     """callback for showing that IOLoop is still responsive while we wait"""
     sys.stdout.write('.')
     sys.stdout.flush()
 
 
 class TestHandler(web.RequestHandler):
-    async def get(self):
+    async def get(self) -> None:
         ctx = FutureContext.instance()
         s = ctx.socket(zmq.DEALER)
 
@@ -58,7 +56,7 @@ class TestHandler(web.RequestHandler):
         self.write(reply)
 
 
-def main():
+def main() -> None:
     worker = threading.Thread(target=slow_responder)
     worker.daemon = True
     worker.start()

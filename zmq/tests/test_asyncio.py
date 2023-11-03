@@ -2,34 +2,26 @@
 # Copyright (c) PyZMQ Developers
 # Distributed under the terms of the Modified BSD License.
 
+import asyncio
 import json
-from multiprocessing import Process
 import os
 import sys
+from concurrent.futures import CancelledError
+from multiprocessing import Process
 
 import pytest
 from pytest import mark
 
 import zmq
-from zmq.utils.strtypes import u
-
-import asyncio
 import zmq.asyncio as zaio
 from zmq.auth.asyncio import AsyncioAuthenticator
-
-from concurrent.futures import CancelledError
 from zmq.tests import BaseZMQTestCase
 from zmq.tests.test_auth import TestThreadAuthentication
 
 
 class ProcessForTeardownTest(Process):
-    def __init__(self, event_loop_policy_class):
-        Process.__init__(self)
-        self.event_loop_policy_class = event_loop_policy_class
-
     def run(self):
         """Leave context, socket and event loop upon implicit disposal"""
-        asyncio.set_event_loop_policy(self.event_loop_policy_class())
 
         actx = zaio.Context.instance()
         socket = actx.socket(zmq.PAIR)
@@ -38,7 +30,7 @@ class ProcessForTeardownTest(Process):
         async def never_ending_task(socket):
             await socket.recv()  # never ever receive anything
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.new_event_loop()
         coro = asyncio.wait_for(never_ending_task(socket), timeout=1)
         try:
             loop.run_until_complete(coro)
@@ -46,6 +38,8 @@ class ProcessForTeardownTest(Process):
             pass  # expected timeout
         else:
             assert False, "never_ending_task was completed unexpectedly"
+        finally:
+            loop.close()
 
 
 class TestAsyncIOSocket(BaseZMQTestCase):
@@ -53,8 +47,7 @@ class TestAsyncIOSocket(BaseZMQTestCase):
 
     def setUp(self):
         self.loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(self.loop)
-        super(TestAsyncIOSocket, self).setUp()
+        super().setUp()
 
     def tearDown(self):
         super().tearDown()
@@ -92,7 +85,7 @@ class TestAsyncIOSocket(BaseZMQTestCase):
             assert not f.done()
             await a.send(b"hi")
             recvd = await f
-            self.assertEqual(recvd, [b"hi"])
+            assert recvd == [b"hi"]
 
         self.loop.run_until_complete(test())
 
@@ -106,8 +99,8 @@ class TestAsyncIOSocket(BaseZMQTestCase):
             await a.send_multipart([b"hi", b"there"])
             recvd = await f2
             assert f1.done()
-            self.assertEqual(f1.result(), b"hi")
-            self.assertEqual(recvd, b"there")
+            assert f1.result() == b"hi"
+            assert recvd == b"there"
 
         self.loop.run_until_complete(test())
 
@@ -124,7 +117,7 @@ class TestAsyncIOSocket(BaseZMQTestCase):
             await a.send_multipart([b"hi", b"there"])
             recvd = await f2
             assert f2.done()
-            self.assertEqual(recvd, [b"hi", b"there"])
+            assert recvd == [b"hi", b"there"]
 
         self.loop.run_until_complete(test())
 
@@ -143,12 +136,12 @@ class TestAsyncIOSocket(BaseZMQTestCase):
             a, b = self.create_bound_pair(zmq.PUSH, zmq.PULL)
             f = b.recv_string()
             assert not f.done()
-            msg = u("πøøπ")
+            msg = "πøøπ"
             await a.send_string(msg)
             recvd = await f
             assert f.done()
-            self.assertEqual(f.result(), msg)
-            self.assertEqual(recvd, msg)
+            assert f.result() == msg
+            assert recvd == msg
 
         self.loop.run_until_complete(test())
 
@@ -161,8 +154,8 @@ class TestAsyncIOSocket(BaseZMQTestCase):
             await a.send_json(obj)
             recvd = await f
             assert f.done()
-            self.assertEqual(f.result(), obj)
-            self.assertEqual(recvd, obj)
+            assert f.result() == obj
+            assert recvd == obj
 
         self.loop.run_until_complete(test())
 
@@ -204,8 +197,8 @@ class TestAsyncIOSocket(BaseZMQTestCase):
             await a.send_pyobj(obj)
             recvd = await f
             assert f.done()
-            self.assertEqual(f.result(), obj)
-            self.assertEqual(recvd, obj)
+            assert f.result() == obj
+            assert recvd == obj
 
         self.loop.run_until_complete(test())
 
@@ -261,7 +254,7 @@ class TestAsyncIOSocket(BaseZMQTestCase):
 
             await a.send(b"not json")
             with pytest.raises(TypeError):
-                recvd = await b.recv_serialized(json.loads)
+                await b.recv_serialized(json.loads)
 
         self.loop.run_until_complete(test())
 
@@ -276,7 +269,7 @@ class TestAsyncIOSocket(BaseZMQTestCase):
             f = pull.recv(zmq.DONTWAIT)
             assert f.done()
             msg = await f
-            self.assertEqual(msg, b"ping")
+            assert msg == b"ping"
 
         self.loop.run_until_complete(test())
 
@@ -292,7 +285,7 @@ class TestAsyncIOSocket(BaseZMQTestCase):
             recvd = await f2
             assert f1.cancelled()
             assert f2.done()
-            self.assertEqual(recvd, [b"hi", b"there"])
+            assert recvd == [b"hi", b"there"]
 
         self.loop.run_until_complete(test())
 
@@ -301,21 +294,21 @@ class TestAsyncIOSocket(BaseZMQTestCase):
             a, b = self.create_bound_pair(zmq.PUSH, zmq.PULL)
             f = b.poll(timeout=0)
             await asyncio.sleep(0)
-            self.assertEqual(f.result(), 0)
+            assert f.result() == 0
 
             f = b.poll(timeout=1)
             assert not f.done()
             evt = await f
 
-            self.assertEqual(evt, 0)
+            assert evt == 0
 
             f = b.poll(timeout=1000)
             assert not f.done()
             await a.send_multipart([b"hi", b"there"])
             evt = await f
-            self.assertEqual(evt, zmq.POLLIN)
+            assert evt == zmq.POLLIN
             recvd = await b.recv_multipart()
-            self.assertEqual(recvd, [b"hi", b"there"])
+            assert recvd == [b"hi", b"there"]
 
         self.loop.run_until_complete(test())
 
@@ -336,9 +329,9 @@ class TestAsyncIOSocket(BaseZMQTestCase):
             assert not f.done()
             a.send_multipart([b"hi", b"there"])
             evt = await f
-            self.assertEqual(evt, [(b, zmq.POLLIN)])
+            assert evt == [(b, zmq.POLLIN)]
             recvd = b.recv_multipart()
-            self.assertEqual(recvd, [b"hi", b"there"])
+            assert recvd == [b"hi", b"there"]
 
         self.loop.run_until_complete(test())
 
@@ -392,7 +385,7 @@ class TestAsyncIOSocket(BaseZMQTestCase):
             r.close()
             w.close()
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.new_event_loop()
         loop.run_until_complete(test())
 
     def test_multiple_loops(self):
@@ -405,7 +398,6 @@ class TestAsyncIOSocket(BaseZMQTestCase):
 
         for i in range(3):
             loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
             loop.run_until_complete(asyncio.wait_for(test(), timeout=10))
             loop.close()
 
@@ -417,8 +409,7 @@ class TestAsyncIOSocket(BaseZMQTestCase):
             assert isinstance(async_s, self.socket_class)
 
     def test_process_teardown(self):
-        event_loop_policy_class = type(asyncio.get_event_loop_policy())
-        proc = ProcessForTeardownTest(event_loop_policy_class)
+        proc = ProcessForTeardownTest()
         proc.start()
         try:
             proc.join(10)  # starting new Python process may cost a lot
@@ -451,8 +442,13 @@ class TestAsyncioAuthentication(TestThreadAuthentication):
 
     def setUp(self):
         self.loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(self.loop)
         super().setUp()
+
+    def start_auth(self):
+        async def start():
+            self.auth.start()
+
+        self.loop.run_until_complete(start())
 
     def tearDown(self):
         super().tearDown()
@@ -487,6 +483,12 @@ class TestAsyncioAuthentication(TestThreadAuthentication):
             return result
 
         return self.loop.run_until_complete(go())
+
+    def send(self, socket, *args, **kwargs):
+        async def _send():
+            return await socket.send(*args, **kwargs)
+
+        return self.loop.run_until_complete(_send())
 
     def _select_recv(self, multipart, socket, **kwargs):
         recv = socket.recv_multipart if multipart else socket.recv

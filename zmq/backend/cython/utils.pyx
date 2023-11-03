@@ -19,38 +19,36 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-from .libzmq cimport (
-    zmq_curve_keypair,
-    zmq_curve_public,
-    zmq_has,
-)
+from .libzmq cimport zmq_curve_keypair, zmq_curve_public, zmq_has
+
 from zmq.error import ZMQError, _check_rc, _check_version
+
 
 def has(capability):
     """Check for zmq capability by name (e.g. 'ipc', 'curve')
-    
+
     .. versionadded:: libzmq-4.1
     .. versionadded:: 14.1
     """
     _check_version((4,1), 'zmq.has')
     cdef bytes ccap
-    if isinstance(capability, unicode):
+    if isinstance(capability, str):
         capability = capability.encode('utf8')
     ccap = capability
     return bool(zmq_has(ccap))
 
 def curve_keypair():
-    """generate a Z85 keypair for use with zmq.CURVE security
-    
+    """generate a Z85 key pair for use with zmq.CURVE security
+
     Requires libzmq (≥ 4.0) to have been built with CURVE support.
-    
+
     .. versionadded:: libzmq-4.0
     .. versionadded:: 14.0
-    
+
     Returns
     -------
     (public, secret) : two bytestrings
-        The public and private keypair as 40 byte z85-encoded bytestrings.
+        The public and private key pair as 40 byte z85-encoded bytestrings.
     """
     cdef int rc
     cdef char[64] public_key
@@ -78,7 +76,7 @@ def curve_public(secret_key):
     bytestring
         The public key as a 40 byte z85-encoded bytestring.
     """
-    if isinstance(secret_key, unicode):
+    if isinstance(secret_key, str):
         secret_key = secret_key.encode('utf8')
     if not len(secret_key) == 40:
         raise ValueError('secret key must be a 40 byte z85 encoded string')

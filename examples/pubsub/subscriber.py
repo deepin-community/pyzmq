@@ -15,10 +15,9 @@ import sys
 import time
 
 import zmq
-import numpy
 
 
-def sync(connect_to):
+def sync(connect_to: str) -> None:
     # use connect socket + 1
     sync_with = ':'.join(
         connect_to.split(':')[:-1] + [str(int(connect_to.split(':')[-1]) + 1)]
@@ -30,7 +29,7 @@ def sync(connect_to):
     s.recv()
 
 
-def main():
+def main() -> None:
     if len(sys.argv) != 3:
         print('usage: subscriber <connect_to> <array-count>')
         sys.exit(1)
@@ -65,10 +64,10 @@ def main():
     message_size = a.nbytes
     megabits = float(throughput * message_size * 8) / 1000000
 
-    print("message size: %.0f [B]" % (message_size,))
-    print("array count: %.0f" % (array_count,))
-    print("mean throughput: %.0f [msg/s]" % (throughput,))
-    print("mean throughput: %.3f [Mb/s]" % (megabits,))
+    print(f"message size: {message_size:.0f} [B]")
+    print(f"array count: {array_count:.0f}")
+    print(f"mean throughput: {throughput:.0f} [msg/s]")
+    print(f"mean throughput: {megabits:.3f} [Mb/s]")
 
     time.sleep(1.0)
 

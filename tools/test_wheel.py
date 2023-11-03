@@ -6,7 +6,6 @@ Just import things
 import os
 import platform
 import sys
-from unittest import SkipTest
 
 import pytest
 
@@ -18,10 +17,13 @@ def test_has(feature):
     if (
         feature == 'ipc'
         and sys.platform == 'win32'
-        and platform.architecture()[0] == '32bit'
+        and platform.python_implementation() == "CPython"
     ):
-        raise SkipTest("32b Windows doesn't have ipc")
-    assert zmq.has(feature)
+        # Windows wheels lack IPC
+        # pending release with https://github.com/zeromq/libzmq/pull/4422
+        assert not zmq.has(feature)
+    else:
+        assert zmq.has(feature)
 
 
 def test_simple_socket():
@@ -46,7 +48,7 @@ def test_bundle_msvcp():
     dlls = []
     if os.path.exists(pyzmq_lib_dir):
         dlls = sorted(
-            [name for name in os.listdir(pyzmq_lib_dir) if name.endswith(".dll")]
+            name for name in os.listdir(pyzmq_lib_dir) if name.endswith(".dll")
         )
     print(dlls)
     # Is concrt140 needed? delvewheel doesn't detect it anymore

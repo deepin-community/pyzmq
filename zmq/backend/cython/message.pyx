@@ -32,6 +32,7 @@ from cpython cimport Py_DECREF, Py_INCREF
 
 from zmq.utils.buffers cimport asbuffer_r
 
+
 cdef extern from "Python.h":
     ctypedef int Py_ssize_t
 
@@ -43,11 +44,12 @@ cdef extern from "mutex.h" nogil:
     cdef int mutex_lock(mutex_t*)
     cdef int mutex_unlock(mutex_t*)
 
-from .libzmq cimport *
-
-from libc.stdio cimport fprintf, stderr as cstderr
-from libc.stdlib cimport malloc, free
+from libc.stdio cimport fprintf
+from libc.stdio cimport stderr as cstderr
+from libc.stdlib cimport free, malloc
 from libc.string cimport memcpy
+
+from .libzmq cimport *
 
 import time
 from weakref import ref
@@ -61,6 +63,7 @@ except (ImportError, AttributeError):
 
 import zmq
 from zmq.error import _check_version
+
 from .checkrc cimport _check_rc
 
 #-----------------------------------------------------------------------------
@@ -138,7 +141,7 @@ cdef class Frame:
         if track:
             self.tracker = zmq._FINISHED_TRACKER
 
-        if isinstance(data, unicode):
+        if isinstance(data, str):
             raise TypeError("Unicode objects not allowed. Only: str/bytes, buffer interfaces.")
 
         if data is None:
@@ -350,7 +353,7 @@ cdef class Frame:
             _check_rc(rc)
             return
         elif option == 'group':
-            if isinstance(value, unicode):
+            if isinstance(value, str):
                 value = value.encode('utf8')
             rc = zmq_msg_set_group(&self.zmq_msg, value)
             _check_rc(rc)
@@ -403,7 +406,7 @@ cdef class Frame:
 
         # zmq_msg_gets
         _check_version((4,1), "get string properties")
-        if isinstance(option, unicode):
+        if isinstance(option, str):
             option = option.encode('utf8')
 
         if not isinstance(option, bytes):
