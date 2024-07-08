@@ -1,3 +1,11 @@
+pyzmq (24.0.1-5) unstable; urgency=medium
+
+  * Team Upload.
+  * Drop Build-Depends on cython3-dbg, no longer needed
+  * Clean correctly.
+
+ -- Stefano Rivera <stefanor@debian.org>  Thu, 23 Nov 2023 15:47:12 +0000
+
 pyzmq (24.0.1-4) unstable; urgency=high
 
   * Team Upload.
