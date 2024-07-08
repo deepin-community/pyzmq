@@ -1,0 +1,4 @@
+pyzmq.egg-info/
+zmq/backend/cython/*.c
+zmq/devices/*.c
+zmq/utils/*.json
